@@ -18,7 +18,8 @@ score = 0
 clock = pygame.time.Clock()
 behaviour_list = ['Kinematic Wandering', 'Kinematic Arrive', 'Kinematic Seek', 'Kinematic Flee', 
                   'Dynamic Flee', 'Dynamic Seek', 'Dynamic Arrive', 'Align', 'Velocity Matching', 
-                  'Face', 'Pursue', 'Evade', 'Dynamic Wander', 'Colition Avoidance', 'Obstacle and Wall Avoidance']
+                  'Face', 'Pursue', 'Evade', 'Dynamic Wander', 'Colition Avoidance', 'Obstacle and Wall Avoidance', 'Separation', 'Pursue While Avoid'
+                  ,'Pursue and Avoid']
 
 obstacles = pygame.sprite.Group()
 
@@ -119,6 +120,24 @@ def spawn_enemy(enemies, behaviour, screensize):
         # Crear el enemigo y asignarle el destino
         enemy = Enemy(behaviour, pos)
         enemy.destination = destination
+        enemies.add(enemy)
+
+    elif behaviour == 16:
+
+        pos = (random.randint(0, screensize[0]), random.randint(0, screensize[1]))
+        enemy = Enemy(behaviour=11, pos=pos)
+        enemies.add(enemy)
+        pos = (random.randint(0, screensize[0]), random.randint(0, screensize[1]))
+        enemy = Enemy(behaviour=10, pos=pos)
+        enemies.add(enemy)
+
+    elif behaviour == 17:
+
+        pos = (random.randint(0, screensize[0]), random.randint(0, screensize[1]))
+        enemy = Enemy(behaviour=16, pos=pos)
+        enemies.add(enemy)
+        pos = (random.randint(0, screensize[0]), random.randint(0, screensize[1]))
+        enemy = Enemy(behaviour=17, pos=pos)
         enemies.add(enemy)
 
     else:

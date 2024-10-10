@@ -10,7 +10,7 @@ COLLISION_COLOR = (255, 165, 0)
 
 class Enemy(pygame.sprite.Sprite):
     
-    def __init__(self, behaviour, pos, waypoints=[]):
+    def __init__(self, behaviour, pos):
         super().__init__()
 
         self.original_image = pygame.Surface([14, 14], pygame.SRCALPHA)
@@ -78,6 +78,13 @@ class Enemy(pygame.sprite.Sprite):
             self.collision_avoidance(enemies)
         elif self.behaviour == 14:
             self.wall_and_obstacle_avoidance(obstacles_group)
+        elif self.behaviour == 15:
+            self.separation(enemies, player.velocity)
+        elif self.behaviour == 16:
+            self.pursue_enemy(enemies)
+        elif self.behaviour == 17:
+            self.evade_enemy(enemies)
+            
         
         # Check Colision, si haym se cambia el color a amarillo
         for sprite in enemies:
@@ -142,7 +149,7 @@ class Enemy(pygame.sprite.Sprite):
 
     # Funcion para limitar velocidad
     def limit_velocity(self):
-        max_speed = 800.0
+        max_speed = 300.0
         speed = math.hypot(self.velocity[0], self.velocity[1])
         if speed > max_speed:
             scale = max_speed / speed
@@ -151,7 +158,7 @@ class Enemy(pygame.sprite.Sprite):
 
     # Funcion para limitar rotacion
     def limit_rotation(self):
-        max_rotation_speed = 15.0
+        max_rotation_speed = 5.0
         if abs(self.rotation) > max_rotation_speed:
             self.rotation = max_rotation_speed * (self.rotation / abs(self.rotation))
 
@@ -255,29 +262,22 @@ class Enemy(pygame.sprite.Sprite):
             # Actualizar orientacion en direccion de movimiento
             self.orientation = math.atan2(self.velocity[1], self.velocity[0])
 
-    # Implementacion de Variable Matching Seek
+    # Implementación de Variable Matching Seek
     def dynamic_seek(self, target_pos):
-        
-        max_acceleration = 40.0
-        slow_radius = 100.0
+        max_acceleration = 300.0
         
         # Calcular direccion hacia el objetivo
         direction = [target_pos[0] - self.pos[0], target_pos[1] - self.pos[1]]
         
-        # calcular distancia hacia el objetivo
+        # Calcular la magnitud de la direccion
         distance = math.sqrt(direction[0] ** 2 + direction[1] ** 2)
         
-        if distance < slow_radius:
-            # Activar comportamiento de arrival si esta dentro del radio
-            self.dynamic_arrive(target_pos)
-            return
-        
         if distance > 0:
-            # Normalizar direccion
+            # Normalizar el vector direccion
             direction[0] /= distance
             direction[1] /= distance
             
-            # Calcular aceleracion necesaria
+            # Escalar el vector con la aceleracion maxima
             self.acceleration[0] = direction[0] * max_acceleration
             self.acceleration[1] = direction[1] * max_acceleration
         else:
@@ -286,45 +286,43 @@ class Enemy(pygame.sprite.Sprite):
             self.velocity[1] = 0
             self.acceleration[0] = 0
             self.acceleration[1] = 0
+        
+        self.angular_acceleration = 0.0
 
     # Implementacion de Variable Mathcing Flee
-    def dynamic_flee(self, target_pos):
-    
-        max_acceleration = 150.0
-        stop_radius = 400.0
-        
+    def dynamic_flee(self, target_pos, max_distance = 250):
+        max_acceleration = 300.0
+            
         # Calcular direccion hacia el objetivo
         direction = [target_pos[0] - self.pos[0], target_pos[1] - self.pos[1]]
         
-        # Calcular distancia al objetivo
+        # Calcular la magnitud de la direccion
         distance = math.sqrt(direction[0] ** 2 + direction[1] ** 2)
         
-        if distance > 0:
-            # Normalizar direccion
+        if distance > 0 and distance < max_distance:
+            # Normalizar el vector direccion
             direction[0] /= distance
             direction[1] /= distance
             
-            if distance > stop_radius:
-                # Detenerse si esta fuera del radio
-                self.velocity[0] = 0
-                self.velocity[1] = 0
-            
-            # Aplicar aceleracion inversa para huir
+            # Escalar el vector con la aceleracion maxima en direccion contraria
             self.acceleration[0] = -direction[0] * max_acceleration
             self.acceleration[1] = -direction[1] * max_acceleration
+
         else:
-            # Detener aceleracion si esta en el objetivo
+            # Detenerse si esta en el objetivo
+            self.velocity[0] = 0
+            self.velocity[1] = 0
             self.acceleration[0] = 0
             self.acceleration[1] = 0
+        
+        self.angular_acceleration = 0.0
 
     # Implementacion de Variable Matching Arrive
-    def dynamic_arrive(self, target):
+    def dynamic_arrive(self, target, target_radius = 30.0, slow_radius = 300.0):
         
         time_to_target = 0.1
         max_speed = 200.0
-        max_acceleration = 50.0
-        target_radius = 30.0
-        slow_radius = 300.0
+        max_acceleration = 80.0
         
         # Calcular direccion hacia el objetivo
         direction = [target[0] - self.pos[0], target[1] - self.pos[1]]
@@ -472,7 +470,7 @@ class Enemy(pygame.sprite.Sprite):
         self.look_where_you_are_going()
 
     # Implementacion de Evade
-    def evade(self, target):
+    def evade(self, target, max_distance = 500):
     
         prediction_time = 3.0
         
@@ -495,19 +493,29 @@ class Enemy(pygame.sprite.Sprite):
         target_pos = [target.pos[0] + (target.velocity[0] * prediction_time), target.pos[1] + (target.velocity[1] * prediction_time)]
         
         # Huir de la posicion predicha
-        self.dynamic_flee(target_pos)
+        self.dynamic_flee(target_pos, max_distance)
         
         # Mirar hacia donde va
         self.look_where_you_are_going()
+
+    # Implementacion para Pursue and Evade de IA
+    def pursue_enemy(self,enemies):
+        for other in enemies:
+            if other is not self:
+                self.pursue(other)
+    def evade_enemy(self,enemies):
+        for other in enemies:
+            if other is not self:
+                self.evade(other)
 
     # Implementacion de Dynamic Wander
     def dynamic_wander(self):
         
         wanderOffset = 100.0
-        wanderRadius = 25.0
+        wanderRadius = 30.0
         wanderRate = 0.5
-        max_acc = 60.0
-        max_speed = 80.0
+        max_acc = 30.0
+        max_speed = 40.0
         
         # Actualizar orientacion de wander con un valor random
         self.wander_orientation += random.uniform(-1.0, 1.0) * wanderRate
@@ -536,11 +544,16 @@ class Enemy(pygame.sprite.Sprite):
             self.velocity[0] *= scale
             self.velocity[1] *= scale
 
-    # Implementacion de Colission Avoidance
+        # Limitar aceleracion angular
+        angular_acc_size = abs(self.angular_acceleration)
+        if angular_acc_size > 3.0:
+            self.angular_acceleration *= 3.0 / angular_acc_size
+
+    # Implementacion de Collision Avoidance
     def collision_avoidance(self, targets):
 
-        max_acceleration=2000.0
-        radius=100.0
+        max_acceleration = 40.0  
+        radius = 40.0
         shortest_time = float('inf')
         first_target = None
         
@@ -560,7 +573,7 @@ class Enemy(pygame.sprite.Sprite):
             if time_to_collision <= 0:
                 continue
             
-            # Calcular la separación mínima
+            # Calcular la separacion minima
             distance = math.hypot(relative_pos[0], relative_pos[1])
             min_separation = distance - relative_speed * time_to_collision
             
@@ -571,32 +584,57 @@ class Enemy(pygame.sprite.Sprite):
             if time_to_collision < shortest_time:
                 shortest_time = time_to_collision
                 first_target = target
+                first_min_separation = min_separation
+                first_distance = distance
+                first_relative_pos = relative_pos
+                first_relative_vel = relative_vel
         
+        # Si no se encuentra colision, continuar con wander
         if not first_target:
-            # Si no se encuentra colision, activar wander
             self.dynamic_wander()
             return
         
+        if first_min_separation <= 0 or first_distance < 2 * radius:
+            relative_pos = [first_target.pos[0] - self.pos[0], first_target.pos[1] - self.pos[1]]
+        else:
+            relative_pos = [first_relative_pos[0] + (first_relative_vel[0] * shortest_time), first_relative_pos[1] + (first_relative_vel[1] * shortest_time)] 
+
+        
         # Evitar colision ajustando la aceleracion
         self.is_evading_colition = True
-        relative_pos = [first_target.pos[0] - self.pos[0], first_target.pos[1] - self.pos[1]]
         distance = math.hypot(relative_pos[0], relative_pos[1])
 
         if distance > 0:
             relative_pos[0] /= distance
             relative_pos[1] /= distance
         
-        # Aplicar aceleracion de evasión
-        self.acceleration[0] += relative_pos[0] * max_acceleration
-        self.acceleration[1] += relative_pos[1] * max_acceleration
+        # Si los personajes estan demasiado cerca, aplicar una mayor aceleracion de la normal para crear mas fuerza de desviacion
+        if distance < radius:
+            dev_strenght = max_acceleration * (radius - distance) / radius
+        else:
+            dev_strenght = max_acceleration
         
-        # Activar wander despues de evitar la colision
-        self.dynamic_wander()
+        # Aplicar aceleración de evasión
+        self.acceleration[0] -= relative_pos[0] * dev_strenght
+        self.acceleration[1] -= relative_pos[1] * dev_strenght
 
+        self.angular_acceleration = 0.0
+
+        # Limitar la aceleracion evitar alejamiento muy subito
+        accel_magnitude = math.sqrt(self.acceleration[0] ** 2 + self.acceleration[1] ** 2)
+        if accel_magnitude > max_acceleration:
+            scale = max_acceleration / accel_magnitude
+            self.acceleration[0] *= scale
+            self.acceleration[1] *= scale
+
+        # Si el personaje esta mas lo suficientemente lejos del enemigo, resumir wander.
+        if distance > radius * 2:
+            self.dynamic_wander()
+    
     # Implementacion de Wall and Obstacle Avoidance
     def wall_and_obstacle_avoidance(self, obstacles_group):
 
-        lookahead=100
+        lookahead=20
         avoid_distance=10
         max_acceleration=10.0
         
@@ -647,6 +685,42 @@ class Enemy(pygame.sprite.Sprite):
             scale = max_acceleration / accel_magnitude
             self.acceleration[0] *= scale
             self.acceleration[1] *= scale
+
+    # Implementacion de Separation para Velocity Matching
+    def separation(self, enemies, player_velocity):
+        
+        # Se llama a velocity matching
+        self.velocity_matching(player_velocity)
+
+        separation_radius=50.0 
+        max_acceleration=80.0
+        linear_acceleration = [0.0, 0.0]
+        threshold = separation_radius 
+        max_acc = max_acceleration     
+
+        # Para todos los enemigos que no son el evaluado (todos se evaluan en cada instancia de enemy)
+        for other in enemies:
+            if other is not self:
+
+                # Calcular direccion hacia el otro enemigo
+                direction = [self.pos[0] - other.pos[0], self.pos[1] - other.pos[1]]
+                distance = math.sqrt(direction[0] ** 2 + direction[1] ** 2)
+
+                # Aplicar fuerza de separacion
+                if distance < threshold and distance > 0:
+                    strength = max_acc * (threshold - distance) / threshold
+
+                    # Normalizar la direccion
+                    direction[0] /= distance
+                    direction[1] /= distance
+
+                    # Agregar la fuerza de separación a la aceleracion lineal
+                    linear_acceleration[0] += strength * direction[0]
+                    linear_acceleration[1] += strength * direction[1]
+
+        # Aplicar la aceleracion calculada al enemigo
+        self.acceleration[0] += linear_acceleration[0]
+        self.acceleration[1] += linear_acceleration[1]
 
     # Renderizado del enemigo
     def render(self, surface):
