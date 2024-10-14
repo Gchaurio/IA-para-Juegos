@@ -608,7 +608,7 @@ class Enemy(pygame.sprite.Sprite):
             relative_pos[0] /= distance
             relative_pos[1] /= distance
         
-        # Si los personajes estan demasiado cerca, aplicar una mayor aceleracion de la normal para crear mas fuerza de desviacion
+        # Conforme se acercan los personajes la fuerza de separacion va a ir aumentando (evitando que salgan disparados de esta manera)
         if distance < radius:
             dev_strenght = max_acceleration * (radius - distance) / radius
         else:
